@@ -3,11 +3,11 @@
   base    = "project/" 
 
   # The command to build your Vite project (assuming 'npm run build' is in project/package.json)
-  command = "npm run build" 
+  command = "cd justbuilt/project && npm run build" 
 
   # The directory (relative to the 'base' directory) where your built site is outputted
   # So, this will be project/dist/
-  publish = "dist/" 
+  publish = "justbuilt/project/dist" 
 
   # The directory for your serverless functions (relative to the root of the repository)
   functions = "netlify/functions" 
@@ -15,4 +15,4 @@
 [[redirects]]
   from = "/*"
   to = "/index.html"
-  status = 200/home/user/just-built/justbuilt/project
+  status = 200/home/user/just-built/justbuilt/project 
