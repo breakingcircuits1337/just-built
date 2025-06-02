@@ -1,0 +1,25 @@
+# Global build settings
+# These settings apply to all deploys unless overridden by a specific context.
+[build]
+  # Specifies the directory to change to before starting the build.
+  # Since your package.json and vite.config.ts are in "project/", this is crucial.
+  base = "project/"
+
+  # The command to build your Vite project.
+  # This command will be run from within the 'base' directory specified above.
+  command = "npm run build" # Assumes 'npm run build' is defined in 'project/package.json'
+
+  # The directory (relative to the 'base' directory) where your built site is outputted.
+  # So, Netlify will look for 'project/dist/'.
+  publish = "dist/"
+
+  # The directory for your serverless functions (relative to the root of your repository).
+  functions = "netlify/functions"
+
+# Redirect rule for Single Page Applications (SPAs) like React.
+# This ensures that all paths are routed to your index.html,
+# allowing client-side routing to take over.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
