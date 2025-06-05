@@ -1,32 +1,34 @@
-import { createClient } from '@supabase/supabase-js';
-import type { Handler } from '@netlify/functions';
+import { Handler } from '@netlify/functions';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import MistralClient from '@mistralai/mistralai';
+import Groq from 'groq-sdk';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const gemini = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || '');
+const mistral = new MistralClient(process.env.VITE_MISTRAL_API_KEY || '');
+const groq = new Groq({
+  apiKey: process.env.VITE_GROQ_API_KEY || '',
+});
 
 export const handler: Handler = async (event) => {
-  // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
       },
     };
   }
 
-  try {
-    if (event.httpMethod !== 'POST') {
-      return {
-        statusCode: 405,
-        body: JSON.stringify({ error: 'Method not allowed' }),
-      };
-    }
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  }
 
+  try {
     const { prompt, model, type } = JSON.parse(event.body || '{}');
 
     if (!prompt || !model || !type) {
@@ -36,33 +38,45 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    // Log the request to Supabase
-    await supabase
-      .from('llm_requests')
-      .insert([
-        {
-          prompt,
-          model,
-          type,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+    let result;
+    const systemPrompt = type === 'plan' 
+      ? `You are an expert software developer. Create a detailed, step-by-step development plan. Format as JSON array with 'description' and 'prompt' fields.`
+      : type === 'structure'
+      ? `Generate a file structure as JSON array with 'name', 'type', and optional 'children' fields.`
+      : `Generate clean, well-documented code only, no explanations.`;
 
-    // Here you would integrate with your chosen LLM provider
-    // For now, returning a structured response
-    const response = {
-      success: true,
-      result: type === 'plan' ? [
-        {
-          description: 'Initialize project structure',
-          prompt: 'Create basic project files and directories',
-        },
-        {
-          description: 'Set up development environment',
-          prompt: 'Configure development tools and dependencies',
-        },
-      ] : 'console.log("Hello, World!");',
-    };
+    switch (model) {
+      case 'gemini': {
+        const genModel = gemini.getGenerativeModel({ model: 'gemini-pro' });
+        const response = await genModel.generateContent(systemPrompt + "\n\n" + prompt);
+        result = response.response.text();
+        break;
+      }
+      case 'mistral': {
+        const response = await mistral.chat({
+          model: 'mistral-large-latest',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ]
+        });
+        result = response.choices[0].message.content;
+        break;
+      }
+      case 'groq': {
+        const response = await groq.chat.completions.create({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ]
+        });
+        result = response.choices[0].message.content;
+        break;
+      }
+      default:
+        throw new Error('Invalid model specified');
+    }
 
     return {
       statusCode: 200,
@@ -70,7 +84,7 @@ export const handler: Handler = async (event) => {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify(response),
+      body: JSON.stringify({ result }),
     };
   } catch (error) {
     console.error('Error:', error);
