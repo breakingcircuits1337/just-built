@@ -22,23 +22,34 @@ class AIService {
         body: JSON.stringify({ prompt, model, type }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      if (!data.result) {
+        throw new Error('No result received from the AI model');
+      }
+
       return data.result;
     } catch (error) {
       console.error(`Error calling LLM function:`, error);
-      throw error;
+      throw new Error(`Failed to generate ${type}: ${error.message}`);
     }
   }
 
   async generateDetailedPlan(prompt: string, provider: AIProvider): Promise<DevelopmentStep[]> {
     try {
       const result = await this.callLLMFunction(prompt, provider, 'plan');
-      return typeof result === 'string' ? JSON.parse(result) : result;
+      if (typeof result === 'string') {
+        try {
+          return JSON.parse(result);
+        } catch (error) {
+          throw new Error('Invalid JSON response from AI model');
+        }
+      }
+      return result;
     } catch (error) {
       console.error(`Error generating plan with ${provider}:`, error);
       throw error;
@@ -48,7 +59,14 @@ class AIService {
   async generateFileStructure(prompt: string, provider: AIProvider): Promise<FileStructure[]> {
     try {
       const result = await this.callLLMFunction(prompt, provider, 'structure');
-      return typeof result === 'string' ? JSON.parse(result) : result;
+      if (typeof result === 'string') {
+        try {
+          return JSON.parse(result);
+        } catch (error) {
+          throw new Error('Invalid JSON response from AI model');
+        }
+      }
+      return result;
     } catch (error) {
       console.error(`Error generating file structure with ${provider}:`, error);
       throw error;
