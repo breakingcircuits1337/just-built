@@ -11,9 +11,9 @@ const corsHeaders = {
 
 const validateApiKeys = () => {
   const missingKeys = [];
-  if (!process.env.VITE_GEMINI_API_KEY) missingKeys.push('VITE_GEMINI_API_KEY');
-  if (!process.env.VITE_MISTRAL_API_KEY) missingKeys.push('VITE_MISTRAL_API_KEY');
-  if (!process.env.VITE_GROQ_API_KEY) missingKeys.push('VITE_GROQ_API_KEY');
+  if (!process.env.GEMINI_API_KEY) missingKeys.push('GEMINI_API_KEY');
+  if (!process.env.MISTRAL_API_KEY) missingKeys.push('MISTRAL_API_KEY');
+  if (!process.env.GROQ_API_KEY) missingKeys.push('GROQ_API_KEY');
   return missingKeys;
 };
 
@@ -64,14 +64,14 @@ export const handler: Handler = async (event) => {
 
     switch (model) {
       case 'gemini': {
-        const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || '');
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
         const genModel = genAI.getGenerativeModel({ model: 'gemini-pro' });
         const response = await genModel.generateContent(systemPrompt + "\n\n" + prompt);
         result = response.response.text();
         break;
       }
       case 'mistral': {
-        const mistral = new MistralClient(process.env.VITE_MISTRAL_API_KEY || '');
+        const mistral = new MistralClient(process.env.MISTRAL_API_KEY || '');
         const response = await mistral.chat({
           model: 'mistral-large-latest',
           messages: [
@@ -84,7 +84,7 @@ export const handler: Handler = async (event) => {
       }
       case 'groq': {
         const groq = new Groq({
-          apiKey: process.env.VITE_GROQ_API_KEY || '',
+          apiKey: process.env.GROQ_API_KEY || '',
         });
         const response = await groq.chat.completions.create({
           model: 'mixtral-8x7b-32768',
