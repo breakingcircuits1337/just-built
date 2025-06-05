@@ -1,7 +1,6 @@
 import type { Handler } from '@netlify/functions';
 
 export const handler: Handler = async (event) => {
-  // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -22,9 +21,9 @@ export const handler: Handler = async (event) => {
 
   try {
     const keys = {
-      geminiKey: process.env.VITE_GEMINI_API_KEY || null,
-      mistralKey: process.env.VITE_MISTRAL_API_KEY || null,
-      groqKey: process.env.VITE_GROQ_API_KEY || null,
+      geminiKey: process.env.GEMINI_API_KEY || null,
+      mistralKey: process.env.MISTRAL_API_KEY || null,
+      groqKey: process.env.GROQ_API_KEY || null,
     };
 
     return {

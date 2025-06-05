@@ -3,13 +3,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import MistralClient from '@mistralai/mistralai';
 import Groq from 'groq-sdk';
 
-const gemini = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || '');
-const mistral = new MistralClient(process.env.VITE_MISTRAL_API_KEY || '');
+const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const mistral = new MistralClient(process.env.MISTRAL_API_KEY || '');
 const groq = new Groq({
-  apiKey: process.env.VITE_GROQ_API_KEY || '',
+  apiKey: process.env.GROQ_API_KEY || '',
 });
 
 export const handler: Handler = async (event) => {
+  // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -90,6 +91,10 @@ export const handler: Handler = async (event) => {
     console.error('Error:', error);
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
       body: JSON.stringify({ error: 'Internal server error' }),
     };
   }
