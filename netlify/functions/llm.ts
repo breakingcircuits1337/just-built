@@ -3,32 +3,28 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import MistralClient from '@mistralai/mistralai';
 import Groq from 'groq-sdk';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-const validateApiKeys = () => {
-  const missingKeys = [];
-  if (!process.env.GEMINI_API_KEY) missingKeys.push('GEMINI_API_KEY');
-  if (!process.env.MISTRAL_API_KEY) missingKeys.push('MISTRAL_API_KEY');
-  if (!process.env.GROQ_API_KEY) missingKeys.push('GROQ_API_KEY');
-  return missingKeys;
-};
+const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const mistral = new MistralClient(process.env.MISTRAL_API_KEY || '');
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || '',
+});
 
 export const handler: Handler = async (event) => {
+  // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
-      headers: corsHeaders,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      },
     };
   }
 
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: corsHeaders,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
   }
@@ -39,19 +35,7 @@ export const handler: Handler = async (event) => {
     if (!prompt || !model || !type) {
       return {
         statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Missing required parameters: prompt, model, or type' }),
-      };
-    }
-
-    const missingKeys = validateApiKeys();
-    if (missingKeys.length > 0) {
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({ 
-          error: `Missing API keys: ${missingKeys.join(', ')}. Please check your environment variables.` 
-        }),
+        body: JSON.stringify({ error: 'Missing required parameters' }),
       };
     }
 
@@ -64,14 +48,12 @@ export const handler: Handler = async (event) => {
 
     switch (model) {
       case 'gemini': {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-        const genModel = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const genModel = gemini.getGenerativeModel({ model: 'gemini-pro' });
         const response = await genModel.generateContent(systemPrompt + "\n\n" + prompt);
         result = response.response.text();
         break;
       }
       case 'mistral': {
-        const mistral = new MistralClient(process.env.MISTRAL_API_KEY || '');
         const response = await mistral.chat({
           model: 'mistral-large-latest',
           messages: [
@@ -83,9 +65,6 @@ export const handler: Handler = async (event) => {
         break;
       }
       case 'groq': {
-        const groq = new Groq({
-          apiKey: process.env.GROQ_API_KEY || '',
-        });
         const response = await groq.chat.completions.create({
           model: 'mixtral-8x7b-32768',
           messages: [
@@ -97,32 +76,26 @@ export const handler: Handler = async (event) => {
         break;
       }
       default:
-        throw new Error(`Invalid model specified: ${model}`);
-    }
-
-    if (!result) {
-      throw new Error('No response received from AI model');
+        throw new Error('Invalid model specified');
     }
 
     return {
       statusCode: 200,
       headers: {
-        ...corsHeaders,
         'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
       },
       body: JSON.stringify({ result }),
     };
   } catch (error) {
-    console.error('Error in LLM function:', error);
+    console.error('Error:', error);
     return {
       statusCode: 500,
       headers: {
-        ...corsHeaders,
         'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify({ 
-        error: `AI model error: ${error.message}. Please check your API keys and try again.` 
-      }),
+      body: JSON.stringify({ error: 'Internal server error' }),
     };
   }
 };
